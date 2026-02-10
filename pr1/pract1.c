@@ -1,6 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+int * change_array_size(int *arr){
+    int new_number;
+
+    printf("Enter size to which you want to change the size of your existing array: ");
+    scanf("%d, &new_number");
+
+    int *temp = (int*)realloc(arr, new_number * sizeof(int));
+
+    if(temp == NULL){
+        printf("\nError. Were not able to change the size of array.");
+        return arr;
+    }else{
+        printf("\nThe size of array was changed succesfully.");
+        return temp;
+    }
+}
+
 int main(){
     int number;
     int *arr = NULL;
@@ -15,33 +32,34 @@ int main(){
         return 1;
     }
 
-    for (int i=0; i<n; i++){
-        arr[i] = n;
+    for (int i=0; i<number; i++){
+        arr[i] = number;
     }
 
     printf("\nArray: ");
-    for (int i=0; i<n i++){
+    for (int i=0; i<number; i++){
         printf("%d ", arr[i]);
     }
 
     printf("\n");
 
-    int new_number;
-    printf("Enter size to which you want to change the size of your existing array: ");
-    scanf("%d, &new_number");
+    char answer;
 
-    int *temp = (int*)realloc(arr, new_number * sizeof(int));
+    printf("Do you want to change the size of the existing array(y/n): ");
+    scanf("%c, &answer");
 
-    if(temp == NULL){
-        printf("\nError. Were not able to change the size of array.");
-    }else{
-        arr = temp;
-        number = new_number;
-        printf("\nThe size of array was changed succesfully.");
+    while(answer == "y" || "Y"){
+         if(answer == "y" || answer == "Y"){
+            arr = change_array_size(arr);
+        }else if(answer == "n" || answer == "N"){
+            free(arr);
+            arr = NULL;
+            return 0;
+        }else{
+            printf("Error. Do you want to change the size of the existing array(y/n): ");
+            scanf("%c, &answer");
+        }
+        printf("Do you want to change the size of the existing array(y/n): ");
+        scanf("%c, &answer");
     }
-
-    free(arr);
-    arr = NULL;
-    
-    return 0;
 }
