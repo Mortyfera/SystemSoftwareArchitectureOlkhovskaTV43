@@ -188,6 +188,124 @@ size hw
 text     data      bss      dec      hex  filename
 1374     4616        8     5998     176e  hw
 ```
-примітки щодо його вимог до розміру часу виконання);<br>
-● текстовий сегмент більшою мірою піддається перевіркам оптимізації;<br>
-● на розмір файлу a.out впливає компіляція для налагодження, але не сегменти.<br>
+### Завдання 3<br>
+Скомпілюйте й запустіть тестову програму, щоб визначити приблизне розташування стека у вашій системі:<br>
+``` c
+#include stdio.h;
+int main() {
+int i;
+printf("The stack top is near %p\n", &i);
+return 0;
+}
+```
+Знайдіть розташування сегментів даних і тексту, а також купи всередині<br>
+сегмента даних, оголосіть змінні, які будуть поміщені в ці сегменти, і виведіть їхні адреси.<br>
+Збільшіть розмір стека, викликавши функцію й оголосивши кілька<br>
+великих локальних масивів. Яка зараз адреса вершини стека?<br>
+Примітка: стек може розташовуватися за різними адресами на різних<br>
+архітектурах та різних ОС. Хоча ми говоримо про вершину стека, на<br>
+більшості процесорів стек зростає вниз, до пам’яті з меншими значеннями адрес.<br>
+Результат<br>
+```
+--- Memory Layout Addresses ---
+Text segment (code) is near  0x638c0302923f
+Data segment (initialized) is near  0x638c0302c010
+BSS segment (uninitialized) is near 0x638c0302c018
+Heap (dynamic data) is near  0x638c1bdbc2a0
+The stack top in main is near      0x7ffc8d7d460c
+The stack top inside grow_stack is near 0x7ffc8d7ca99c
+```
+### Завдання 4<br>
+Ваше завдання – дослідити стек процесу або пригадати, як це робиться. Ви можете:<br>
+● Автоматично за допомогою утиліти gstack.<br>
+● Вручну за допомогою налагоджувача GDB.<br>
+Користувачі Ubuntu можуть зіткнутися з проблемою: на момент написання<br>
+(Ubuntu 18.04) gstack, схоже, не був доступний (альтернативою може бути<br>
+pstack). Якщо gstack не працює, використовуйте другий метод – через GDB, як показано нижче.<br>
+Спочатку подивіться на стек за допомогою gstack(1). Нижче наведений<br>
+приклад стека bash (аргументом команди є PID процесу):<br>
+```
+$ gstack 14654
+#0 0x00007f359ec7ee7a in waitpid () from /lib64/libc.so.6
+#1 0x000056474b4b41d9 in waitchild.isra ()
+#2 0x000056474b4b595d in wait_for ()
+#3 0x000056474b4a5033 in execute_command_internal ()
+#4 0x000056474b4a5c22 in execute_command ()
+#5 0x000056474b48f252 in reader_loop ()
+#6 0x000056474b48dd32 in main ()
+$
+```
+Розбір стека:<br>
+● Номер кадру стека відображається ліворуч перед символом #.<br>
+● Кадр #0 – це найнижчий кадр. Читайте стек знизу вверх (тобто від<br>
+main() – кадр #6 – до waitpid() – кадр #0).<br>
+● Якщо процес багатопотоковий, gstack покаже стек кожного потоку окремо.<br>
+Аналіз стека в режимі користувача через GDB<br>
+Щоб переглянути стек процесу вручну, використовуйте GDB, приєднавшись до процесу.<br>
+Нижче наведена невелика тестова програма на C, що виконує кілька<br>
+вкладених викликів функцій. Граф викликів виглядає так:<br>
+```
+main() --&gt; foo() --&gt; bar() --&gt; bar_is_now_closed() --&gt; pause()
+```
+Системний виклик pause() – це приклад блокуючого виклику. Він<br>
+переводить викликаючий процес у сплячий режим, очікуючи (або<br>
+блокуючи) сигнал. У цьому випадку процес блокується, поки не отримає будь-який сигнал.<br>
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+
+#define MSG "In function %20s; &localvar = %p\n"
+
+static void bar_is_now_closed(void) {
+    int localvar = 5;
+    printf(MSG, __FUNCTION__, &localvar);
+    printf("\n Now blocking on pause()...\n");
+
+    pause();
+}
+
+static void bar(void) {
+    int localvar = 5;
+    printf(MSG, __FUNCTION__, &localvar);
+    bar_is_now_closed();
+}
+static void foo(void) {
+    int localvar = 5;
+    printf(MSG, __FUNCTION__, &localvar);
+    bar();
+}
+
+int main(int argc, char **argv) {
+    int localvar = 5;
+    printf(MSG, __FUNCTION__, &localvar);
+    foo();
+    exit(EXIT_SUCCESS);
+}
+```
+Тепер відкрийте GDB<br>
+У ньому підключіться (attach) до процесу (в наведеному прикладі PID =<br>
+24957) і дослідіть стек за допомогою команди backtrace (bt):<br>
+```
+$ gdb --quiet
+(gdb) attach 24957
+Attaching to process 24957
+Reading symbols from &lt;...&gt;/hspl/unit2/stacker...done.
+Reading symbols from /lib64/libc.so.6...Reading symbols from
+/usr/lib/debug/usr/lib64/libc-2.26.so.debug...done.
+done.
+Reading symbols from /lib64/ld-linux-x86-64.so.2...Reading symbols
+...
+(gdb) bt
+...
+```
+Примітка: В Ubuntu, через питання безпеки, GDB не дозволяє<br>
+підключатися до довільного процесу. Це можна обійти, запустивши GDB<br>
+від імені користувача root.<br>
+Аналіз того ж процесу через gstack<br>
+$ gstack 24957<br>
+...<br>
+gstack — це, по суті, оболонковий скрипт (wrapper shell script), який<br>
+неінтерактивно викликає GDB і запускає команду backtrace, яку ви щойно використали.<br>
+Завдання: Ознайомтеся з виводом gstack і порівняйте його з GDB.<br>
