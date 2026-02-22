@@ -6,12 +6,12 @@ int global_initialized = 95;
 int global_uninitialized;    
 
 void grow_stack() {
-    int large_array[10000]; 
-    int stack_var_deep;
+    int array[10000]; 
+    int stack;
     
-    large_array[0] = 1;
+    array[0] = 1;
 
-    printf("The stack top inside grow_stack is near %p\n", (void*)&stack_var_deep);
+    printf("The stack top inside grow_stack is near %p\n", (void*)&stack);
 }
 
 int main() {
