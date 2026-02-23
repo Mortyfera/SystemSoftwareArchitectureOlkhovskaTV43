@@ -309,3 +309,50 @@ $ gstack 24957<br>
 gstack — це, по суті, оболонковий скрипт (wrapper shell script), який<br>
 неінтерактивно викликає GDB і запускає команду backtrace, яку ви щойно використали.<br>
 Завдання: Ознайомтеся з виводом gstack і порівняйте його з GDB.<br>
+Результат:<br>
+```
+morty@puter:~/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2$ ./pr2_3 &
+[2] 21911
+morty@puter:~/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2$ In function                 main; &localvar = 0x7ffd6c4cf4b4
+In function                  foo; &localvar = 0x7ffd6c4cf484
+In function                  bar; &localvar = 0x7ffd6c4cf464
+In function    bar_is_now_closed; &localvar = 0x7ffd6c4cf444
+
+ Now blocking on pause()...
+sudo gdb --quiet
+(gdb) attach 21911
+Attaching to process 21911
+Reading symbols from /home/morty/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2/pr2_3...
+Reading symbols from /lib/x86_64-linux-gnu/libc.so.6...
+Reading symbols from /usr/lib/debug/.build-id/8e/9fd827446c24067541ac5390e6f527fb5947bb.debug...
+Reading symbols from /lib64/ld-linux-x86-64.so.2...
+Reading symbols from /usr/lib/debug/.build-id/da/07864eb4c1b06504b8688d25d7e84759fe708d.debug...
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+0x000076b433cfa3d4 in __libc_pause () at ../sysdeps/unix/sysv/linux/pause.c:29
+warning: 29    ../sysdeps/unix/sysv/linux/pause.c: No such file or directory
+(gdb) bt
+#0  0x000076b433cfa3d4 in __libc_pause () at ../sysdeps/unix/sysv/linux/pause.c:29
+#1  0x00005a3fc0016224 in bar_is_now_closed () at pr2_3.c:13
+#2  0x00005a3fc0016287 in bar () at pr2_3.c:19
+#3  0x00005a3fc00162ea in foo () at pr2_3.c:24
+#4  0x00005a3fc0016354 in main (argc=1, argv=0x7ffd6c4cf5e8) at pr2_3.c:30
+(gdb) detach
+Detaching from program: /home/morty/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2/pr2_3, process 21911
+[Inferior 1 (process 21911) detached]
+(gdb) quit
+```
+### Завдання 5<br>
+Відомо, що при виклику процедур і поверненні з них процесор використовує стек.<br>
+Чи можна в такій схемі обійтися без лічильника команд (IP), використовуючи замість нього вершину стека?<br>
+Обґрунтуйте свою відповідь та наведіть приклади.<br>
+Рішення<br>
+Повністю відмовитися від лічильника команд (IP) і використовувати лише вершину стека практично неможливо.<br>
+Головне завдання IP — автоматично та швидко вказувати на адресу наступної команди в пам'яті для забезпечення послідовного виконання коду.<br>
+Стек за своєю природою створений для тимчасового зберігання даних і адрес повернення з підпрограм.<br>
+Якби вершина стека постійно працювала як лічильник команд, кожна базова інструкція вимагала б безперервного запису<br>
+та зчитування адреси наступної команди зі стека. Це змішало б робочі дані з потоком керування та катастрофічно сповільнило б<br>
+роботу процесора, оскільки звернення до оперативної пам'яті (де знаходиться стек) набагато повільніше за оновлення апаратного регістра всередині процесора.<br>
+Навіть під час повернення з процедури, коли система дійсно використовує стек для навігації, вона не працює безпосередньо з нього.<br>
+Процесор бере збережену адресу з вершини стека і записує її саме в регістр IP, щоб відновити нормальний робочий цикл.<br>
+Тому для ефективної архітектури ці два інструменти суворо розділяють: IP керує послідовністю дій, а стек обслуговує дані та контекст викликів.<br>
