@@ -356,3 +356,77 @@ Detaching from program: /home/morty/Documents/АСПз/SystemSoftwareArchitectur
 Навіть під час повернення з процедури, коли система дійсно використовує стек для навігації, вона не працює безпосередньо з нього.<br>
 Процесор бере збережену адресу з вершини стека і записує її саме в регістр IP, щоб відновити нормальний робочий цикл.<br>
 Тому для ефективної архітектури ці два інструменти суворо розділяють: IP керує послідовністю дій, а стек обслуговує дані та контекст викликів.<br>
+### Завдання 13<br> 
+Дослідіть вплив оптимізації -Os на розмір сегментів.<br>
+Рішення:
+Компілюю код з прапорцем -O0 та -Os та порівнюю розмір структур файлів за допомогою утиліти size<br>
+```
+morty@puter:~/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2$ gcc -O0 pr2_13.c -o pr2_13
+morty@puter:~/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2$ gcc -Os pr2_13.c -o pr2_13_opt
+morty@puter:~/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2$ size pr2_13 pr2_13_opt
+   text     data      bss      dec      hex  filename
+   1537      604     4032     6173     181d  pr2_13
+   1477      604     4032     6113     17e1  pr2_13_opt
+```
+За допомогою утиліти objdump та прапорця -d дизасемблюю код та порівнюю готові файли, щоб подивитись як саме був код скорочений за допомогою прапорця -Os<br>
+```
+morty@puter:~/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2$ objdump -d pr2_13 > pr2_13.asm
+morty@puter:~/Documents/АСПз/SystemSoftwareArchitectureOlkhovskaTV43/pr2$ objdump -d pr2_13_opt > pr2_13_opt.asm
+```
+Функція function в не оптимізованому коді:<br>
+```
+0000000000001149 <function>:
+    1149:	f3 0f 1e fa          	endbr64
+    114d:	55                   	push   %rbp
+    114e:	48 89 e5             	mov    %rsp,%rbp
+    1151:	48 83 ec 10          	sub    $0x10,%rsp
+    1155:	c7 45 f8 00 00 00 00 	movl   $0x0,-0x8(%rbp)
+    115c:	c7 45 fc 00 00 00 00 	movl   $0x0,-0x4(%rbp)
+    1163:	eb 40                	jmp    11a5 <function+0x5c>
+    1165:	8b 05 a5 2e 00 00    	mov    0x2ea5(%rip),%eax        # 4010 <initialized_variable>
+    116b:	0f af 45 fc          	imul   -0x4(%rbp),%eax
+    116f:	8b 55 fc             	mov    -0x4(%rbp),%edx
+    1172:	48 63 d2             	movslq %edx,%rdx
+    1175:	48 8d 0c 95 00 00 00 	lea    0x0(,%rdx,4),%rcx
+    117c:	00 
+    117d:	48 8d 15 bc 2e 00 00 	lea    0x2ebc(%rip),%rdx        # 4040 <uninitialized_array>
+    1184:	89 04 11             	mov    %eax,(%rcx,%rdx,1)
+    1187:	8b 45 fc             	mov    -0x4(%rbp),%eax
+    118a:	48 98                	cltq
+    118c:	48 8d 14 85 00 00 00 	lea    0x0(,%rax,4),%rdx
+    1193:	00 
+    1194:	48 8d 05 a5 2e 00 00 	lea    0x2ea5(%rip),%rax        # 4040 <uninitialized_array>
+    119b:	8b 04 02             	mov    (%rdx,%rax,1),%eax
+    119e:	01 45 f8             	add    %eax,-0x8(%rbp)
+    11a1:	83 45 fc 01          	addl   $0x1,-0x4(%rbp)
+    11a5:	81 7d fc e7 03 00 00 	cmpl   $0x3e7,-0x4(%rbp)
+    11ac:	7e b7                	jle    1165 <function+0x1c>
+    11ae:	8b 45 f8             	mov    -0x8(%rbp),%eax
+    11b1:	89 c6                	mov    %eax,%esi
+    11b3:	48 8d 05 4a 0e 00 00 	lea    0xe4a(%rip),%rax        # 2004 <_IO_stdin_used+0x4>
+    11ba:	48 89 c7             	mov    %rax,%rdi
+    11bd:	b8 00 00 00 00       	mov    $0x0,%eax
+    11c2:	e8 89 fe ff ff       	call   1050 <printf@plt>
+    11c7:	90                   	nop
+    11c8:	c9                   	leave
+    11c9:	c3                   	ret
+```
+Функція function в оптимізованому коді:<br>
+```
+0000000000001159 <function>:
+    1159:	f3 0f 1e fa          	endbr64
+    115d:	48 8d 05 dc 2e 00 00 	lea    0x2edc(%rip),%rax        # 4040 <uninitialized_array>
+    1164:	8b 15 a6 2e 00 00    	mov    0x2ea6(%rip),%edx        # 4010 <initialized_variable>
+    116a:	31 c9                	xor    %ecx,%ecx
+    116c:	48 8d b0 a0 0f 00 00 	lea    0xfa0(%rax),%rsi
+    1173:	89 08                	mov    %ecx,(%rax)
+    1175:	48 83 c0 04          	add    $0x4,%rax
+    1179:	01 d1                	add    %edx,%ecx
+    117b:	48 39 f0             	cmp    %rsi,%rax
+    117e:	75 f3                	jne    1173 <function+0x1a>
+    1180:	69 d2 2c 9f 07 00    	imul   $0x79f2c,%edx,%edx
+    1186:	48 8d 35 77 0e 00 00 	lea    0xe77(%rip),%rsi        # 2004 <_IO_stdin_used+0x4>
+    118d:	bf 02 00 00 00       	mov    $0x2,%edi
+    1192:	31 c0                	xor    %eax,%eax
+    1194:	e9 b7 fe ff ff       	jmp    1050 <__printf_chk@plt>
+    ```
